@@ -4,38 +4,80 @@
  */
 
 //Deklarasikan endpoint API 
+const API_URL = 'api/mahasiswa.php';
 
 // 1. Seleksi Elemen DOM Utama
 const tabelBody = document.getElementById('tabel-body-mahasiswa');
 const inputSearch = document.getElementById('input-search');
 const totalBadge = document.getElementById('total-mahasiswa-badge');
-
+const totalInfo = document.getElementById('total-mahasiswa-info');
+const formTambah = document.getElementById('form-tambah-mahasiswa');
+const alertBox = document.getElementById('alert-box');
 
 // Helper: Menampilkan Pesan Notifikasi Dinamis
 function showAlert(message, type = 'success') {
-   
+   if (!alertBox) return;
+    alertBox.textContent = message;
+    alertBox.className = `alert-box alert-${type}`;
+    alertBox.style.display = 'block';
+    setTimeout(() => {
+        alertBox.style.display = 'none';
+    }, 4000);
+}
+
+// Helper: Mengamankan teks dari karakter khusus HTML
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, function (char) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char];
+    });
 }
 
 // 2. Fetch API GET: Mengambil Data Mahasiswa dari Server
 async function loadMahasiswa(keyword = '') {
 
     // tampilkan indikator loading
-    tabelBody.innerHTML = ``;
+    tabelBody.innerHTML = `
+        <tr>
+            <td colspan="8" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                Memuat data dari server...
+            </td>
+        </tr>
+    `;
 
     try {
 
         //Percobaan 6-1 Langkah 4 susun url request
-        
+        const url = keyword ? 
+        `${API_URL}?search=${encodeURIComponent(keyword)}` : API_URL;
         //Percobaan 6-1 Langkah 4 kirim request
-        
+        const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         //Percobaan 6-1 Langkah 4 kirim ekstrak json 
-
+        const result = await response.json();
+            if (result.status === 'success') {
+                renderTable(result.data, keyword);
+            } else {
+                showAlert(result.message, 'danger');
+                tabelBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px; color: #ef4444;">
+                            ${escapeHtml(result.message || 'Gagal memuat data.')}
+                        </td>
+                    </tr>
+                `;
+            }
       
     } catch (error) {
         tabelBody.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align: center; padding: 20px; color: #ef4444;">
-                    Gagal memuat data dari REST API: ${error.message}
+                    Gagal memuat data dari REST API: ${escapeHtml(error.message)}
                 </td>
             </tr>
         `;
@@ -69,16 +111,16 @@ function renderTable(mahasiswaList = [], keyword = '') {
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td>
-                <img src="img/avatar-default.svg" alt="Foto ${mhs.nama}" class="avatar-img" width="36" height="36">
+                <img src="img/avatar-default.svg" alt="Foto ${escapeHtml(mhs.nama)}" class="avatar-img" width="36" height="36">
             </td>
-            <td><strong>${mhs.npm}</strong></td>
-            <td>${mhs.nama}</td>
-            <td><span class="badge">${mhs.program_studi}</span></td>
-            <td>${mhs.angkatan}</td>
-            <td><a href="mailto:${mhs.email}" class="link-email">${mhs.email}</a></td>
+            <td><strong>${escapeHtml(mhs.npm)}</strong></td>
+            <td>${escapeHtml(mhs.nama)}</td>
+            <td><span class="badge">${escapeHtml(mhs.program_studi)}</span></td>
+            <td>${escapeHtml(mhs.angkatan)}</td>
+            <td><a href="mailto:${escapeHtml(mhs.email)}" class="link-email">${escapeHtml(mhs.email)}</a></td>
             <td>
                 <button type="button" class="btn btn-warning btn-sm" onclick="openEditModal(${mhs.id})">Edit</button>
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteMahasiswa(${mhs.id}, '${mhs.nama}')">Hapus</button>
+                <button type="button" class="btn btn-danger btn-sm" data-nama="${escapeHtml(mhs.nama)}" onclick="deleteMahasiswa(${mhs.id}, this.dataset.nama)">Hapus</button>
             </td>
         `;
         tabelBody.appendChild(tr);
